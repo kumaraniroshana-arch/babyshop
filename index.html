@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="si">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>කඩේ POS - Grocery Shop</title>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <style>
+        :root {
+            --primary: #15803d;
+            --primary-dark: #166534;
+            --danger: #dc2626;
+            --warning: #d97706;
+            --bg: #f1f5f9;
+            --card: #ffffff;
+            --text: #0f172a;
+        }
+        * { box-sizing: border-box; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
+        body { margin: 0; padding: 0; background-color: var(--bg); color: var(--text); padding-bottom: 30px; }
+        
+        header { background: var(--primary); color: white; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .logo { font-size: 20px; font-weight: bold; }
+        .nav-actions { display: flex; gap: 8px; }
+        .btn-header { background: rgba(255,255,255,0.2); border: none; color: white; padding: 8px 12px; border-radius: 8px; font-weight: bold; font-size: 14px; cursor: pointer; }
+        
+        .container { display: flex; flex-direction: column; padding: 10px; gap: 12px; max-width: 1200px; margin: auto; }
+        @media (min-width: 768px) {
+            .container { flex-direction: row; align-items: flex-start; }
+            .left-panel { flex: 1.2; }
+            .right-panel { flex: 1; position: sticky; top: 60px; }
+        }
+
+        .search-box { display: flex; gap: 8px; margin-bottom: 10px; }
+        .search-box input { flex: 1; padding: 14px; font-size: 16px; border: 2px solid #cbd5e1; border-radius: 10px; outline: none; }
+        .search-box input:focus { border-color: var(--primary); }
+        .btn-voice { background: #6366f1; color: white; border: none; border-radius: 10px; padding: 0 14px; font-size: 16px; cursor: pointer; font-weight: bold; }
+
+        .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        @media (min-width: 480px) { .grid { grid-template-columns: repeat(3, 1fr); } }
+        
+        .card { background: var(--card); border: 2px solid #e2e8f0; border-radius: 12px; padding: 12px; text-align: center; cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.05); user-select: none; }
+        .card:active { transform: scale(0.97); background: #f8fafc; border-color: var(--primary); }
+        .item-name { font-size: 17px; font-weight: bold; margin-bottom: 2px; }
+        .item-sub { font-size: 12px; color: #64748b; margin-bottom: 6px; }
+        .item-price { font-size: 18px; font-weight: 800; color: var(--primary); }
+        
+        .weight-btns { display: flex; gap: 4px; margin-top: 8px; justify-content: center; }
+        .w-btn { background: #e2e8f0; border: none; border-radius: 6px; font-size: 12px; font-weight: bold; padding: 6px 8px; cursor: pointer; }
+        .w-btn:active { background: var(--primary); color: white; }
+
+        .cart-box { background: var(--card); border-radius: 12px; border: 2px solid #cbd5e1; padding: 14px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .cart-title { font-size: 18px; font-weight: bold; border-bottom: 2px solid #f1f5f9; padding-bottom: 8px; margin-bottom: 10px; display: flex; justify-content: space-between; }
+        .cart-items { max-height: 280px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+        
+        .cart-row { display: flex; justify-content: space-between; align-items: center; background: #f8fafc; padding: 8px 10px; border-radius: 8px; }
+        .row-details { flex: 1; }
+        .row-name { font-weight: bold; font-size: 15px; }
+        .row-qty { font-size: 13px; color: #475569; }
+        .row-total { font-size: 16px; font-weight: bold; margin-right: 12px; }
+        .btn-del { background: #fee2e2; color: var(--danger); border: none; border-radius: 6px; width: 32px; height: 32px; font-weight: bold; cursor: pointer; font-size: 16px; }
+
+        .total-box { margin-top: 12px; border-top: 2px dashed #cbd5e1; padding-top: 10px; }
+        .grand-total { font-size: 26px; font-weight: 900; color: var(--primary); display: flex; justify-content: space-between; }
+        
+        .quick-cash { display: flex; gap: 6px; margin: 10px 0; }
+        .cash-btn { flex: 1; background: #e0f2fe; color: #0369a1; border: 1px solid #7dd3fc; border-radius: 8px; padding: 10px 0; font-size: 15px; font-weight: bold; cursor: pointer; }
+        .cash-btn:active { background: #0284c7; color: white; }
+
+        .balance-box { background: #dcfce7; border: 2px solid #86efac; border-radius: 10px; padding: 10px; text-align: center; margin: 8px 0; }
+        .balance-label { font-size: 14px; font-weight: bold; color: #166534; }
+        .balance-val { font-size: 28px; font-weight: 900; color: #15803d; }
+
+        .btn-complete { background: var(--primary); color: white; width: 100%; border: none; border-radius: 10px; padding: 16px; font-size: 20px; font-weight: bold; cursor: pointer; margin-top: 6px; }
+
+        /* Modals */
+        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 200; align-items: center; justify-content: center; padding: 12px; }
+        .modal-content { background: white; border-radius: 14px; padding: 16px; width: 100%; max-width: 460px; max-height: 90vh; overflow-y: auto; }
+        .form-group { margin-bottom: 12px; }
+        .form-group label { display: block; font-weight: bold; margin-bottom: 5px; font-size: 14px; }
+        
+        .input-with-voice { display: flex; gap: 6px; }
+        .input-with-voice input { flex: 1; padding: 12px; border: 1.5px solid #cbd5e1; border-radius: 8px; font-size: 16px; outline: none; }
+        .input-with-voice input:focus { border-color: var(--primary); }
+        .voice-btn-field { border: none; border-radius: 8px; padding: 0 10px; font-size: 14px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .btn-mic-si { background: #fef08a; color: #854d0e; border: 1px solid #fde047; }
+        .btn-mic-en { background: #e0e7ff; color: #3730a3; border: 1px solid #c7d2fe; }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="logo">🛒 කඩේ POS</div>
+    <div class="nav-actions">
+        <button class="btn-header" onclick="openScanner()">📷 Scan</button>
+        <button class="btn-header" onclick="openNewItemModal()">➕ අලුත් බඩු</button>
+    </div>
+</header>
+
+<div class="container">
+    <div class="left-panel">
+        <div class="search-box">
+            <input type="text" id="searchInput" placeholder="සොයන්න (Search / Singlish)..." oninput="filterItems()">
+            <button class="btn-voice" onclick="dictateField('searchInput', 'si-LK')" title="සිංහලෙන් කියන්න">🎙️ සිං</button>
+            <button class="btn-voice" style="background:#4f46e5;" onclick="dictateField('searchInput', 'en-US')" title="Speak in English">🎙️ En</button>
+        </div>
+
+        <div class="grid" id="productGrid"></div>
+    </div>
+
+    <div class="right-panel">
+        <div class="cart-box">
+            <div class="cart-title">
+                <span>වත්මන් බිල (Current Bill)</span>
+                <button onclick="clearCart()" style="background:none; border:none; color:var(--danger); font-size:14px; font-weight:bold; cursor:pointer;">මකන්න</button>
+            </div>
+
+            <div class="cart-items" id="cartContainer">
+                <div style="text-align:center; color:#94a3b8; padding:30px 0;">බඩු තෝරන්න</div>
+            </div>
+
+            <div class="total-box">
+                <div class="grand-total">
+                    <span>එකතුව:</span>
+                    <span id="grandTotalText">Rs. 0</span>
+                </div>
+
+                <div style="margin-top:10px;">
+                    <label style="font-size:13px; font-weight:bold;">ලැබුණු මුදල (Cash Given):</label>
+                    <input type="number" id="cashInput" style="width:100%; padding:10px; font-size:18px; border:2px solid #cbd5e1; border-radius:8px; margin-top:4px;" placeholder="Rs. 0" oninput="calculateBalance()">
+                </div>
+
+                <div class="quick-cash">
+                    <button class="cash-btn" onclick="addCash(100)">+100</button>
+                    <button class="cash-btn" onclick="addCash(500)">+500</button>
+                    <button class="cash-btn" onclick="addCash(1000)">+1000</button>
+                    <button class="cash-btn" onclick="addCash(5000)">+5000</button>
+                </div>
+
+                <div class="balance-box" id="balanceBox" style="display:none;">
+                    <div class="balance-label">ඉතිරි මුදල (Customer Balance)</div>
+                    <div class="balance-val" id="balanceVal">Rs. 0</div>
+                </div>
+
+                <button class="btn-complete" onclick="finishBill()">✅ බිල අවසන් කරන්න</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Camera Scanner Modal -->
+<div class="modal" id="scannerModal">
+    <div class="modal-content" style="text-align:center;">
+        <h3 style="margin-top:0;">Barcode එක පෙන්වන්න</h3>
+        <div id="reader" style="width:100%; min-height:250px;"></div>
+        <button onclick="closeScanner()" style="background:#64748b; color:white; border:none; padding:10px 20px; border-radius:8px; font-weight:bold; margin-top:15px; cursor:pointer;">වසන්න</button>
+    </div>
+</div>
+
+<!-- Add New Item Modal with Voice Input -->
+<div class="modal" id="newItemModal">
+    <div class="modal-content">
+        <h3 style="margin-top:0; font-size:18px; color:var(--primary);">➕ අලුත් බඩුවක් ඇතුළත් කරන්න</h3>
+        
+        <div class="form-group">
+            <label>බඩුවේ නම (Name):</label>
+            <div class="input-with-voice">
+                <input type="text" id="newSiName" placeholder="උදා: රතු කැකුළු / Biscuit">
+                <button type="button" class="voice-btn-field btn-mic-si" onclick="dictateField('newSiName', 'si-LK')" title="සිංහලෙන් කියන්න">🎙️ සිං</button>
+                <button type="button" class="voice-btn-field btn-mic-en" onclick="dictateField('newSiName', 'en-US')" title="English Voice">🎙️ En</button>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>මිල (Price Rs.):</label>
+            <div class="input-with-voice">
+                <input type="number" id="newPrice" placeholder="Rs.">
+                <button type="button" class="voice-btn-field btn-mic-si" onclick="dictatePrice('newPrice', 'si-LK')" title="ගාණ සිංහලෙන් කියන්න">🎙️ සිං</button>
+                <button type="button" class="voice-btn-field btn-mic-en" onclick="dictatePrice('newPrice', 'en-US')" title="Price in English">🎙️ En</button>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>වර්ගය (Unit):</label>
+            <select id="newUnit" style="width:100%; padding:12px; border:1.5px solid #cbd5e1; border-radius:8px; font-size:15px;">
+                <option value="kg">කිරන බඩු (1 Kg, 500g, 250g)</option>
+                <option value="item">පැකට් / කරල් / බෝතල් (1 Unit)</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>Barcode එක (විකල්පයි):</label>
+            <input type="text" id="newBarcode" style="width:100%; padding:12px; border:1.5px solid #cbd5e1; border-radius:8px; font-size:15px;" placeholder="Scan or Type">
+        </div>
+
+        <div style="display:flex; gap:10px; margin-top:16px;">
+            <button onclick="saveNewItem()" style="flex:1; background:var(--primary); color:white; border:none; padding:14px; border-radius:8px; font-weight:bold; font-size:16px; cursor:pointer;">සුරකින්න (Save)</button>
+            <button onclick="closeNewItemModal()" style="background:#e2e8f0; color:#334155; border:none; padding:14px; border-radius:8px; font-weight:bold; cursor:pointer;">අවලංගුයි</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const defaultItems = [
+        { id: 1, nameSi: "සුදු සීනි", nameEn: "White Sugar", singlish: "seeni", price: 260, unit: "kg", barcode: "1001" },
+        { id: 2, nameSi: "මයිසූර් පරිප්පු", nameEn: "Dhal", singlish: "parippu", price: 320, unit: "kg", barcode: "1002" },
+        { id: 3, nameSi: "කීරි සම්බා", nameEn: "Keeri Samba", singlish: "keeri samba haal", price: 340, unit: "kg", barcode: "1003" },
+        { id: 4, nameSi: "තිරිඟු පිටි", nameEn: "Wheat Flour", singlish: "piti flour", price: 190, unit: "kg", barcode: "1004" },
+        { id: 5, nameSi: "ඇන්කර් කිරිපිටි 400g", nameEn: "Anchor Milk 400g", singlish: "anchor kiri piti", price: 1080, unit: "item", barcode: "1005" },
+        { id: 6, nameSi: "සන්ලයිට් සබන්", nameEn: "Sunlight Soap", singlish: "sunlight saban", price: 140, unit: "item", barcode: "1006" }
+    ];
+
+    let items = JSON.parse(localStorage.getItem("pos_items")) || defaultItems;
+    let cart = [];
+    let html5QrcodeScanner = null;
+
+    function renderGrid(list = items) {
+        const grid = document.getElementById("productGrid");
+        grid.innerHTML = "";
+        
+        list.forEach(item => {
+            const card = document.createElement("div");
+            card.className = "card";
+            
+            let weightHtml = "";
+            if (item.unit === "kg") {
+                weightHtml = `
+                    <div class="weight-btns">
+                        <button class="w-btn" onclick="event.stopPropagation(); addToCart(${item.id}, 0.25)">250g</button>
+                        <button class="w-btn" onclick="event.stopPropagation(); addToCart(${item.id}, 0.5)">500g</button>
+                        <button class="w-btn" onclick="event.stopPropagation(); addToCart(${item.id}, 1)">1kg</button>
+                    </div>
+                `;
+            }
+
+            card.innerHTML = `
+                <div class="item-name">${item.nameSi}</div>
+                <div class="item-sub">${item.nameEn || ''}</div>
+                <div class="item-price">Rs. ${item.price} <span style="font-size:12px; font-weight:normal; color:#64748b;">/${item.unit}</span></div>
+                ${weightHtml}
+            `;
+            
+            card.onclick = () => addToCart(item.id, 1);
+            grid.appendChild(card);
+        });
+    }
+
+    function addToCart(itemId, qty) {
+        const item = items.find(i => i.id === itemId);
+        if (!item) return;
+
+        const existing = cart.find(c => c.id === itemId && c.qtyType === (qty < 1 ? 'fraction' : 'whole'));
+        if (existing) {
+            existing.qty += qty;
+        } else {
+            cart.push({ ...item, qty: qty, qtyType: (qty < 1 ? 'fraction' : 'whole') });
+        }
+        renderCart();
+    }
+
+    function renderCart() {
+        const container = document.getElementById("cartContainer");
+        if (cart.length === 0) {
+            container.innerHTML = `<div style="text-align:center; color:#94a3b8; padding:30px 0;">බඩු තෝරන්න</div>`;
+            document.getElementById("grandTotalText").innerText = "Rs. 0";
+            calculateBalance();
+            return;
+        }
+
+        container.innerHTML = "";
+        let total = 0;
+
+        cart.forEach((c, index) => {
+            const subtotal = c.price * c.qty;
+            total += subtotal;
+
+            const row = document.createElement("div");
+            row.className = "cart-row";
+            row.innerHTML = `
+                <div class="row-details">
+                    <div class="row-name">${c.nameSi}</div>
+                    <div class="row-qty">${c.qty >= 1 ? c.qty + ' ' + c.unit : (c.qty * 1000) + 'g'} × Rs. ${c.price}</div>
+                </div>
+                <div class="row-total">Rs. ${Math.round(subtotal)}</div>
+                <button class="btn-del" onclick="removeFromCart(${index})">✕</button>
+            `;
+            container.appendChild(row);
+        });
+
+        document.getElementById("grandTotalText").innerText = "Rs. " + Math.round(total);
+        calculateBalance();
+    }
+
+    function removeFromCart(index) {
+        cart.splice(index, 1);
+        renderCart();
+    }
+
+    function clearCart() {
+        cart = [];
+        document.getElementById("cashInput").value = "";
+        renderCart();
+    }
+
+    function addCash(amount) {
+        const input = document.getElementById("cashInput");
+        const curr = Number(input.value) || 0;
+        input.value = curr + amount;
+        calculateBalance();
+    }
+
+    function calculateBalance() {
+        const grandTotal = cart.reduce((acc, c) => acc + (c.price * c.qty), 0);
+        const cash = Number(document.getElementById("cashInput").value) || 0;
+        const box = document.getElementById("balanceBox");
+        const val = document.getElementById("balanceVal");
+
+        if (cash > 0 && grandTotal > 0) {
+            box.style.display = "block";
+            const diff = cash - grandTotal;
+            if (diff >= 0) {
+                val.innerText = "Rs. " + Math.round(diff);
+                val.style.color = "#15803d";
+            } else {
+                val.innerText = "මදි Rs. " + Math.round(Math.abs(diff));
+                val.style.color = "#dc2626";
+            }
+        } else {
+            box.style.display = "none";
+        }
+    }
+
+    function finishBill() {
+        if (cart.length === 0) {
+            alert("කරුණාකර බඩුවක් තෝරන්න!");
+            return;
+        }
+        alert("බිල සාර්ථකයි! (Bill Completed)");
+        clearCart();
+    }
+
+    function filterItems() {
+        const query = document.getElementById("searchInput").value.toLowerCase().trim();
+        const filtered = items.filter(i => 
+            i.nameSi.toLowerCase().includes(query) ||
+            (i.nameEn && i.nameEn.toLowerCase().includes(query)) ||
+            (i.singlish && i.singlish.toLowerCase().includes(query)) ||
+            (i.barcode && i.barcode.includes(query))
+        );
+        renderGrid(filtered);
+    }
+
+    // Voice Engine for Text Fields (Search & Name)
+    function dictateField(targetId, lang) {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+            alert("Chrome භාවිතා කරන්න (Speech API නොමැත).");
+            return;
+        }
+        const recognition = new SpeechRecognition();
+        recognition.lang = lang;
+        recognition.onresult = (event) => {
+            const transcript = event.results[0][0].transcript;
+            document.getElementById(targetId).value = transcript;
+            if (targetId === 'searchInput') filterItems();
+        };
+        recognition.start();
+    }
+
+    // Voice Engine specifically for Price Field (Extracts numbers)
+    function dictatePrice(targetId, lang) {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+            alert("Chrome භාවිතා කරන්න.");
+            return;
+        }
+        const recognition = new SpeechRecognition();
+        recognition.lang = lang;
+        recognition.onresult = (event) => {
+            let transcript = event.results[0][0].transcript;
+            
+            // Extract numeric digits if present
+            let matches = transcript.match(/\d+/g);
+            if (matches) {
+                document.getElementById(targetId).value = matches.join('');
+            } else {
+                // Basic conversion for common Sinhala / spoken numbers
+                let val = transcript.toLowerCase();
+                if (val.includes("සීයක්") || val.includes("hundred")) document.getElementById(targetId).value = 100;
+                else if (val.includes("දෙසිය") || val.includes("two hundred")) document.getElementById(targetId).value = 200;
+                else if (val.includes("පන්සිය") || val.includes("five hundred")) document.getElementById(targetId).value = 500;
+                else if (val.includes("දාහ") || val.includes("thousand")) document.getElementById(targetId).value = 1000;
+                else document.getElementById(targetId).value = transcript;
+            }
+        };
+        recognition.start();
+    }
+
+    // Barcode Scanner Modal Logic
+    function openScanner() {
+        document.getElementById("scannerModal").style.display = "flex";
+        html5QrcodeScanner = new Html5Qrcode("reader");
+        html5QrcodeScanner.start(
+            { facingMode: "environment" },
+            { fps: 10, qrbox: 250 },
+            (decodedText) => {
+                const found = items.find(i => i.barcode === decodedText);
+                if (found) {
+                    addToCart(found.id, 1);
+                    closeScanner();
+                } else {
+                    alert("අලුත් Barcode එකක්: " + decodedText);
+                }
+            },
+            () => {}
+        ).catch(() => {
+            alert("කැමරාව ක්‍රියාත්මක කළ නොහැක.");
+            closeScanner();
+        });
+    }
+
+    function closeScanner() {
+        if (html5QrcodeScanner) {
+            html5QrcodeScanner.stop().then(() => {
+                document.getElementById("scannerModal").style.display = "none";
+            }).catch(() => {
+                document.getElementById("scannerModal").style.display = "none";
+            });
+        } else {
+            document.getElementById("scannerModal").style.display = "none";
+        }
+    }
+
+    function openNewItemModal() {
+        document.getElementById("newItemModal").style.display = "flex";
+    }
+    function closeNewItemModal() {
+        document.getElementById("newItemModal").style.display = "none";
+    }
+
+    function saveNewItem() {
+        const nameSi = document.getElementById("newSiName").value.trim();
+        const price = Number(document.getElementById("newPrice").value);
+        const unit = document.getElementById("newUnit").value;
+        const barcode = document.getElementById("newBarcode").value.trim();
+
+        if (!nameSi || !price) {
+            alert("කරුණාකර නම සහ මිල ඇතුළත් කරන්න.");
+            return;
+        }
+
+        const newItem = {
+            id: Date.now(),
+            nameSi: nameSi,
+            nameEn: nameSi,
+            singlish: nameSi.toLowerCase(),
+            price: price,
+            unit: unit,
+            barcode: barcode
+        };
+
+        items.push(newItem);
+        localStorage.setItem("pos_items", JSON.stringify(items));
+        renderGrid();
+        closeNewItemModal();
+        
+        document.getElementById("newSiName").value = "";
+        document.getElementById("newPrice").value = "";
+        document.getElementById("newBarcode").value = "";
+    }
+
+    renderGrid();
+</script>
+</body>
+</html>
